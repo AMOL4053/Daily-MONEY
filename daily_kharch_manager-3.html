@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Kharch Manager</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f7fb;color:#172033;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:980px;margin:auto;padding:16px}.top{background:linear-gradient(135deg,#111827,#26364d);color:#fff;padding:24px;border-radius:24px;box-shadow:0 12px 30px #10182822}
+h1{margin:0;font-size:30px;letter-spacing:-.5px}.sub{margin-top:7px;opacity:.72;font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
+.card{background:#fff;padding:17px;border-radius:18px;box-shadow:0 5px 20px #1018280b;border:1px solid #edf0f5}.label{font-size:12px;color:#667085;font-weight:650;text-transform:uppercase;letter-spacing:.35px}
+.big{font-size:27px;font-weight:850;margin-top:6px}.green{color:#15803d}.red{color:#c2410c}
+input{width:100%;padding:12px 13px;border:1px solid #d9dee8;border-radius:12px;font-size:16px;margin-top:7px;background:#fbfcfe;outline:none}
+input:focus{border-color:#64748b;box-shadow:0 0 0 3px #64748b18}button{border:0;border-radius:12px;padding:12px 16px;background:#18212f;color:#fff;font-weight:750;cursor:pointer;transition:.15s}
+button:hover{transform:translateY(-1px)}button.light{background:#eef1f6;color:#18212f}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+.section{margin-top:15px}.section h2{font-size:19px;margin:0 0 4px}.day{border:1px solid #e5e8ef;border-radius:15px;padding:13px;margin-top:10px;background:#fcfcfd}
+.dayhead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:7px}.expense{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid #edf0f4}
+.expense b{font-size:15px}.small{font-size:13px;color:#667085}.empty{text-align:center;color:#667085;padding:28px}
+.summary-card{position:relative;overflow:hidden}.summary-card:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-35px;top:-35px;background:#f1f4f8}
+.note{font-size:12px;color:#667085;margin:10px 0 0}
+@media(max-width:600px){.wrap{padding:10px}.top{padding:20px;border-radius:20px}h1{font-size:25px}.big{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>💰 Daily Kharch Manager</h1>
+    <div class="sub">पैसे add करा → रोजचा खर्च title सह लिहा → किती पैसे उरले ते बघा</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Total Money / Salary</div>
+      <input id="budget" type="number" value="17500" oninput="saveBudget();render()">
+    </div>
+    <div class="card summary-card"><div class="label">Total खर्च</div><div class="big red" id="spent">₹0</div></div>
+    <div class="card summary-card"><div class="label">Remaining Money</div><div class="big green" id="remaining">₹17,500</div></div>
+  </div>
+
+  <div class="card section">
+    <h2>➕ Daily Expense</h2>
+    <div class="grid">
+      <div><div class="label">Date</div><input id="date" type="date"></div>
+      <div><div class="label">खर्चाचा Title</div><input id="title" placeholder="उदा. जेवण, Petrol, चहा"></div>
+      <div><div class="label">Amount (₹)</div><input id="amount" type="number" placeholder="150"></div>
+    </div>
+    <div class="actions"><button onclick="addExpense()">+ खर्च Add करा</button></div>
+  </div>
+
+  <div class="card section">
+    <h2>📅 Daily Records</h2><div class="note">प्रत्येक दिवसाचा खर्च खाली वेगळा दिसेल.</div>
+    <div id="records"></div>
+  </div>
+
+  <div class="card section">
+    <h2>📊 Summary</h2>
+    <div class="grid">
+      <div><div class="label">आजचा खर्च</div><div class="big" id="today">₹0</div></div>
+      <div><div class="label">एकूण Entries</div><div class="big" id="entries">0</div></div>
+    </div>
+    <div class="actions">
+      <button class="light" onclick="exportCSV()">Export CSV</button>
+      <button class="light" onclick="clearAll()">सगळे Records Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const key="dailyExpensesV1", budgetKey="dailyBudgetV1";
+const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+function todayISO(){return new Date().toISOString().slice(0,10)}
+$("date").value=todayISO();
+$("budget").value=localStorage.getItem(budgetKey)||17500;
+
+function getData(){return JSON.parse(localStorage.getItem(key)||"[]")}
+function saveBudget(){localStorage.setItem(budgetKey,$("budget").value||0)}
+
+function addExpense(){
+  const date=$("date").value||todayISO(), title=$("title").value.trim(), amount=+$("amount").value||0;
+  if(!title){alert("खर्चाचा Title टाका.");return}
+  if(amount<=0){alert("Amount योग्य टाका.");return}
+  const data=getData();
+  data.push({id:Date.now(),date,title,amount});
+  localStorage.setItem(key,JSON.stringify(data));
+  $("title").value="";$("amount").value="";$("date").value=todayISO();
+  render();
+}
+
+function deleteExpense(id){
+  const data=getData().filter(x=>x.id!==id);
+  localStorage.setItem(key,JSON.stringify(data));render();
+}
+
+function render(){
+  const data=getData(), budget=+$("budget").value||0, spent=data.reduce((s,x)=>s+x.amount,0);
+  $("spent").textContent=money(spent); $("remaining").textContent=money(budget-spent);
+  $("remaining").className="big "+(budget-spent>=0?"green":"red");
+  $("entries").textContent=data.length;
+  const td=todayISO();
+  $("today").textContent=money(data.filter(x=>x.date===td).reduce((s,x)=>s+x.amount,0));
+
+  if(!data.length){$("records").innerHTML='<div class="empty">अजून कोणताही खर्च add केलेला नाही.</div>';return}
+  const groups={};
+  data.forEach(x=>(groups[x.date]??=[]).push(x));
+  $("records").innerHTML=Object.keys(groups).sort().reverse().map(date=>{
+    const arr=groups[date], total=arr.reduce((s,x)=>s+x.amount,0);
+    return `<div class="day"><div class="dayhead"><strong>📅 ${date}</strong><strong>${money(total)}</strong></div>`+
+      arr.map(x=>`<div class="expense"><span><b>${esc(x.title)}</b><br><span class="small">${money(x.amount)}</span></span><button class="light" onclick="deleteExpense(${x.id})">Delete</button></div>`).join("")+
+      `</div>`;
+  }).join("");
+}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function exportCSV(){
+  const data=getData();if(!data.length){alert("Export करण्यासाठी record नाही.");return}
+  const rows=[["Date","Title","Amount"],...data.map(x=>[x.date,x.title,x.amount])];
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="daily-kharch-record.csv";a.click();
+}
+function clearAll(){if(confirm("सगळे daily records delete करायचे?")){localStorage.removeItem(key);render()}}
+render();
+</script>
+</body>
+</html>
